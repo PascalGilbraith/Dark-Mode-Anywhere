@@ -10,7 +10,11 @@
 // is not inverted a second time.
 const STYLE_ID = "dark-mode-anywhere-style";
 const MEDIA_ATTR = "data-dma-media";
-const MEDIA_SELECTORS = ["img", "video", "canvas", "embed", "object", "iframe", "svg image", `[${MEDIA_ATTR}]`];
+// Areas whose own background is already dark/saturated (e.g. a red header bar)
+// are kept as authored: only bright areas get inverted.
+const KEEP_ATTR = "data-dma-keep";
+const BRIGHTNESS_THRESHOLD = 0.45;
+const MEDIA_SELECTORS = ["img", "video", "canvas", "embed", "object", "iframe", "svg image", `[${MEDIA_ATTR}]`, `[${KEEP_ATTR}]`];
 const MEDIA = MEDIA_SELECTORS.join(", ");
 const CSS = `
 html {
@@ -30,20 +34,38 @@ let observer = null;
 const pending = new Set();
 let timer = null;
 
-// A background image counts as media when the element has no text of its own
-// (otherwise it is a layout container whose text must still be darkened).
-function tagIfBackgroundMedia(el) {
-  if (el.nodeType !== 1 || el.hasAttribute(MEDIA_ATTR)) return;
-  if (!/^(DIV|SPAN|A|FIGURE|LI|I|SECTION|P)$/.test(el.tagName)) return;
-  const bg = getComputedStyle(el).backgroundImage;
-  if (bg && bg.includes("url(") && el.textContent.trim() === "") {
-    el.setAttribute(MEDIA_ATTR, "");
+function isDarkBackground(color) {
+  const m = color.match(/rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?/);
+  if (!m) return false;
+  const alpha = m[4] === undefined ? 1 : parseFloat(m[4]);
+  if (alpha < 0.9) return false;
+  const luma = (0.299 * m[1] + 0.587 * m[2] + 0.114 * m[3]) / 255;
+  return luma < BRIGHTNESS_THRESHOLD;
+}
+
+function setAttr(el, name, on) {
+  if (on !== el.hasAttribute(name)) {
+    if (on) el.setAttribute(name, "");
+    else el.removeAttribute(name);
   }
 }
 
+function tagElement(el) {
+  // A background image counts as media only if the element has no text of its
+  // own (otherwise it is a layout container whose text must still be darkened).
+  if (el.nodeType !== 1 || el === document.documentElement) return;
+  const cs = getComputedStyle(el);
+  const bgImage = cs.backgroundImage;
+  const isBgMedia =
+    /^(DIV|SPAN|A|FIGURE|LI|I|SECTION|P)$/.test(el.tagName) &&
+    bgImage && bgImage.includes("url(") && el.textContent.trim() === "";
+  setAttr(el, MEDIA_ATTR, Boolean(isBgMedia));
+  setAttr(el, KEEP_ATTR, !isBgMedia && isDarkBackground(cs.backgroundColor));
+}
+
 function scan(root) {
-  tagIfBackgroundMedia(root);
-  if (root.querySelectorAll) root.querySelectorAll("*").forEach(tagIfBackgroundMedia);
+  tagElement(root);
+  if (root.querySelectorAll) root.querySelectorAll("*").forEach(tagElement);
 }
 
 function flush() {
