@@ -1,0 +1,14 @@
+body {
+  min-width: 260px;
+  margin: 0;
+  padding: 12px;
+  font: 13px system-ui, sans-serif;
+}
+h1 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+label {
+  display: block;
+  margin: 8px 0;
+}

@@ -7,7 +7,12 @@
     "48": "icons/icon.svg",
     "96": "icons/icon.svg"
   },
-  "permissions": ["storage"],
+  "permissions": ["storage", "activeTab"],
+  "browser_action": {
+    "default_title": "Dark Mode Anywhere",
+    "default_icon": "icons/icon.svg",
+    "default_popup": "popup.html"
+  },
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*", "file:///*"],
