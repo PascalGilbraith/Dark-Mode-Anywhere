@@ -18,7 +18,7 @@
       "matches": ["http://*/*", "https://*/*", "file:///*"],
       "js": ["content.js"],
       "run_at": "document_start",
-      "all_frames": true
+      "all_frames": false
     }
   ],
   "browser_specific_settings": {
