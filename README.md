@@ -2,6 +2,8 @@
 
 A small Firefox extension that applies a dark theme to any web page.
 
+**Install:** [Dark Mode Anywhere on addons.mozilla.org](https://addons.mozilla.org/en-GB/firefox/addon/dark-mode-anywhere/)
+
 - One click toggles dark mode for the current site (remembered per site)
 - Optional "always dark" default for all sites
 - No tracking, no network requests, no external dependencies
