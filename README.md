@@ -13,7 +13,7 @@ A small Firefox extension that applies a dark theme to any web page.
 | Path | Purpose |
 | --- | --- |
 | `src/` | Extension source (manifest, scripts, popup, icons) |
-| `scripts/build.js` | Builds `dist/dark-mode-anywhere-<version>.zip` (installable package) |
+| `scripts/build.js` | Builds two zips in `dist/`: the store package and a self-distributed one with a different add-on ID |
 | `scripts/test.js` | Sanity checks for the manifest and build |
 
 ## Development
@@ -21,7 +21,8 @@ A small Firefox extension that applies a dark theme to any web page.
 Requires Node.js 18+. No npm dependencies are needed.
 
 ```sh
-npm run build   # creates dist/dark-mode-anywhere-<version>.zip
+npm run build   # creates dist/dark-mode-anywhere-<version>.zip (store)
+                # and dist/dark-mode-anywhere-<version>-self-distributed.zip
 npm test        # validates manifest and built package
 ```
 
