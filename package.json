@@ -1,6 +1,6 @@
 {
   "name": "dark-mode-anywhere",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Firefox extension that adds dark mode to any web page",
   "private": true,
   "license": "MIT",
