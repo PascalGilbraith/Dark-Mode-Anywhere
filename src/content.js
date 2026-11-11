@@ -50,6 +50,31 @@ function setAttr(el, name, on) {
   }
 }
 
+const SHADOW_MEDIA = "video, canvas, img, picture, svg image";
+let observedShadows = new WeakSet();
+
+// Custom elements (e.g. a site's video player) keep their <video> inside a
+// shadow root that page stylesheets cannot reach, so the host itself has to be
+// re-inverted. Shadow roots are also observed so late-rendered players are caught.
+function hasShadowMedia(el) {
+  if (!el.tagName.includes("-")) return false;
+  const sr = el.openOrClosedShadowRoot;
+  if (!sr) return false;
+  if (observer && !observedShadows.has(sr)) {
+    observedShadows.add(sr);
+    observer.observe(sr, { childList: true, subtree: true });
+  }
+  return Boolean(sr.querySelector(SHADOW_MEDIA));
+}
+
+// Map a node inside a shadow tree back to its host in the main document.
+function outermostHost(node) {
+  for (let root = node.getRootNode(); root instanceof ShadowRoot; root = node.getRootNode()) {
+    node = root.host;
+  }
+  return node;
+}
+
 function tagElement(el) {
   // A background image counts as media only if the element has no text of its
   // own (otherwise it is a layout container whose text must still be darkened).
@@ -59,8 +84,9 @@ function tagElement(el) {
   const isBgMedia =
     /^(DIV|SPAN|A|FIGURE|LI|I|SECTION|P)$/.test(el.tagName) &&
     bgImage && bgImage.includes("url(") && el.textContent.trim() === "";
-  setAttr(el, MEDIA_ATTR, Boolean(isBgMedia));
-  setAttr(el, KEEP_ATTR, !isBgMedia && isDarkBackground(cs.backgroundColor));
+  const isMedia = Boolean(isBgMedia) || hasShadowMedia(el);
+  setAttr(el, MEDIA_ATTR, isMedia);
+  setAttr(el, KEEP_ATTR, !isMedia && isDarkBackground(cs.backgroundColor));
 }
 
 function scan(root) {
@@ -82,10 +108,13 @@ function queue(node) {
 
 function startObserver() {
   if (observer) return;
+  observedShadows = new WeakSet();
   observer = new MutationObserver((records) => {
     for (const r of records) {
-      if (r.type === "childList") r.addedNodes.forEach((n) => n.nodeType === 1 && queue(n));
-      else queue(r.target);
+      if (r.type === "childList") {
+        if (r.target.getRootNode() instanceof ShadowRoot) queue(outermostHost(r.target));
+        else r.addedNodes.forEach((n) => n.nodeType === 1 && queue(n));
+      } else queue(r.target);
     }
   });
   observer.observe(document.documentElement, {
