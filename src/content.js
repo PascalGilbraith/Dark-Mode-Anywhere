@@ -50,21 +50,43 @@ function setAttr(el, name, on) {
   }
 }
 
-const SHADOW_MEDIA = "video, canvas, img, picture, svg image";
+const SHADOW_MEDIA = new Set(["VIDEO", "CANVAS", "IMG", "PICTURE", "IMAGE"]);
 let observedShadows = new WeakSet();
+const customHosts = new Set();
+let recheckTimer = null;
 
 // Custom elements (e.g. a site's video player) keep their <video> inside a
 // shadow root that page stylesheets cannot reach, so the host itself has to be
-// re-inverted. Shadow roots are also observed so late-rendered players are caught.
-function hasShadowMedia(el) {
-  if (!el.tagName.includes("-")) return false;
-  const sr = el.openOrClosedShadowRoot;
-  if (!sr) return false;
+// re-inverted. Shadow trees are searched recursively (including nested shadow
+// roots and background images) and observed so late-rendered players are caught.
+function shadowHasMedia(sr) {
   if (observer && !observedShadows.has(sr)) {
     observedShadows.add(sr);
     observer.observe(sr, { childList: true, subtree: true });
   }
-  return Boolean(sr.querySelector(SHADOW_MEDIA));
+  for (const el of sr.querySelectorAll("*")) {
+    if (SHADOW_MEDIA.has(el.tagName.toUpperCase())) return true;
+    if (getComputedStyle(el).backgroundImage.includes("url(")) return true;
+    const nested = el.openOrClosedShadowRoot;
+    if (nested && shadowHasMedia(nested)) return true;
+  }
+  return false;
+}
+
+function hasShadowMedia(el) {
+  if (!el.tagName.includes("-")) return false;
+  customHosts.add(el);
+  const sr = el.openOrClosedShadowRoot;
+  return Boolean(sr) && shadowHasMedia(sr);
+}
+
+// Players often attach their shadow root after insertion, which no mutation
+// on the page reports, so known custom elements are re-checked periodically.
+function recheckCustomHosts() {
+  for (const el of customHosts) {
+    if (!el.isConnected) customHosts.delete(el);
+    else tagElement(el);
+  }
 }
 
 // Map a node inside a shadow tree back to its host in the main document.
@@ -109,6 +131,7 @@ function queue(node) {
 function startObserver() {
   if (observer) return;
   observedShadows = new WeakSet();
+  recheckTimer = setInterval(recheckCustomHosts, 1000);
   observer = new MutationObserver((records) => {
     for (const r of records) {
       if (r.type === "childList") {
@@ -129,6 +152,8 @@ function startObserver() {
 function stopObserver() {
   if (observer) observer.disconnect();
   observer = null;
+  clearInterval(recheckTimer);
+  customHosts.clear();
   pending.clear();
 }
 
